@@ -188,9 +188,28 @@
   }
   body.editing .add-item-btn { display: flex; }
   .add-item-btn:hover { border-color: #FBBF24; color: #FBBF24; }
+
+  /* ── HOVER POPOVER ── */
+  .hover-popover {
+    position: fixed; z-index: 200;
+    background: var(--surface2); border: 1px solid rgba(255,255,255,.22);
+    border-radius: 14px; padding: 16px 18px; width: 290px;
+    pointer-events: none;
+    box-shadow: 0 24px 60px rgba(0,0,0,.65);
+    opacity: 0; transform: scale(.95) translateY(6px);
+    transition: opacity .18s, transform .18s;
+  }
+  .hover-popover.show { opacity: 1; transform: scale(1) translateY(0); }
+  .pop-hierarchy { font-size: 11px; color: var(--faint); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+  .pop-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; line-height: 1.35; }
+  .pop-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+  .pop-url { font-size: 11px; color: var(--faint); word-break: break-all; line-height: 1.4; }
+  .pop-open { margin-top: 12px; font-size: 12px; font-weight: 600; color: #60A5FA; display: flex; align-items: center; gap: 5px; }
 </style>
 </head>
 <body>
+
+<div class="hover-popover" id="hoverPopover"></div>
 
 <div class="topbar">
   <div class="logo">FDE <span>Hub</span></div>
@@ -566,6 +585,53 @@ document.getElementById("searchInput").oninput = e => {
   searchQ = e.target.value.toLowerCase();
   if (currentCat) renderResources(); else renderHome();
 };
+
+// ── HOVER POPOVER ─────────────────────────────────────────────────────────
+const popover = document.getElementById("hoverPopover");
+let popTimer = null;
+
+document.addEventListener("mouseover", e => {
+  const ritem = e.target.closest(".ritem");
+  if (!ritem || editMode) return;
+  const id = ritem.querySelector(".star-btn")?.getAttribute("onclick")?.match(/'([^']+)'/)?.[1];
+  if (!id) return;
+  const r = resources.find(x => x.id === id);
+  if (!r) return;
+  const cat = categories.find(c => c.id === r.cat);
+
+  clearTimeout(popTimer);
+  popTimer = setTimeout(() => {
+    const hierarchyHtml = cat
+      ? `<div class="pop-hierarchy"><span>${cat.title}</span>${r.group ? `<span>›</span><span>${r.group}</span>` : ""}</div>`
+      : "";
+    popover.innerHTML = `
+      ${hierarchyHtml}
+      <div class="pop-title">${r.title}</div>
+      ${r.desc ? `<div class="pop-desc">${r.desc}</div>` : ""}
+      ${r.url ? `<div class="pop-url">${r.url}</div>` : ""}
+      ${r.url ? `<div class="pop-open"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Click to open</div>` : ""}
+    `;
+
+    const rect = ritem.getBoundingClientRect();
+    const pw = 290, ph = popover.offsetHeight || 160, gap = 10;
+    let left = rect.right + gap;
+    let top  = rect.top;
+    if (left + pw > window.innerWidth - 12) left = rect.left - pw - gap;
+    if (top + ph > window.innerHeight - 12) top = window.innerHeight - ph - 12;
+    if (top < 8) top = 8;
+
+    popover.style.left = left + "px";
+    popover.style.top  = top  + "px";
+    popover.classList.add("show");
+  }, 220);
+});
+
+document.addEventListener("mouseout", e => {
+  const ritem = e.target.closest(".ritem");
+  if (!ritem) return;
+  clearTimeout(popTimer);
+  popover.classList.remove("show");
+});
 
 renderHome();
 </script>
