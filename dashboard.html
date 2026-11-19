@@ -288,10 +288,13 @@ const defaultResources = [
 
 // ── PERSISTENCE ───────────────────────────────────────────────────────────
 function loadResources() {
-  const saved = localStorage.getItem("fde_hub_v4");
-  if (saved) return JSON.parse(saved);
   ["fde_hub_v1","fde_hub_v2","fde_hub_v3"].forEach(k => localStorage.removeItem(k));
-  return JSON.parse(JSON.stringify(defaultResources));
+  const saved = localStorage.getItem("fde_hub_v4");
+  if (!saved) return JSON.parse(JSON.stringify(defaultResources));
+  const merged = JSON.parse(saved);
+  const savedIds = new Set(merged.map(r => r.id));
+  defaultResources.forEach(r => { if (!savedIds.has(r.id)) merged.push(r); });
+  return merged;
 }
 function saveResources() { localStorage.setItem("fde_hub_v4", JSON.stringify(resources)); }
 
