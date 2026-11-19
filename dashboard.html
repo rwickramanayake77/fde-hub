@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FDE Hub</title>
+<style>
+  :root {
+    --bg:      #032D60;
+    --surface: #0A3D73;
+    --surface2:#0D4A8A;
+    --border:  #1A5FA0;
+    --text:    #FFFFFF;
+    --muted:   #E2EEFF;
+    --faint:   #A8C4E8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(3,45,96,.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 32px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+  .logo span { color: #60A5FA; }
+  .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); }
+  .breadcrumb.show { display: flex; }
+  .breadcrumb-home { cursor: pointer; }
+  .breadcrumb-home:hover { color: var(--text); }
+  .breadcrumb-current { color: var(--text); font-weight: 600; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 13px; width: 220px;
+  }
+  .search-box input { background: none; border: none; outline: none; color: var(--text); font-size: 13px; width: 100%; }
+  .search-box input::placeholder { color: var(--faint); }
+  .topbar-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--faint); border-radius: 8px; padding: 6px 13px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all .15s; white-space: nowrap; text-decoration: none;
+  }
+  .topbar-btn:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .topbar-btn.edit-active { background: #FBBF24; border-color: #FBBF24; color: #032D60; }
+  .back-btn {
+    display: none; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 8px; padding: 6px 13px;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s;
+  }
+  .back-btn:hover { color: var(--text); border-color: var(--muted); }
+  .back-btn.show { display: flex; }
+
+  /* ── HOME ── */
+  #home-view { padding: 28px 32px 36px; }
+  .home-intro { margin-bottom: 24px; }
+  .home-intro h2 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+  .home-intro p { color: var(--faint); font-size: 14px; }
+
+  /* Quick access + Recent rows */
+  .home-section { margin-bottom: 32px; }
+  .home-section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .home-section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  .quick-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Pill item (pinned / recent) */
+  .pill-item {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 14px;
+    text-decoration: none; color: inherit; cursor: pointer;
+    transition: all .15s; max-width: 300px;
+  }
+  .pill-item:hover { border-color: rgba(255,255,255,.2); background: var(--surface2); }
+  .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pill-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill-cat { font-size: 11px; color: var(--faint); white-space: nowrap; }
+  .pin-active .pill-dot { background: #FBBF24; }
+
+  /* Star button on ritems */
+  .star-btn {
+    position: absolute; top: 10px; right: 10px;
+    width: 24px; height: 24px; border-radius: 6px;
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--faint); transition: all .15s; opacity: 0;
+  }
+  .ritem:hover .star-btn { opacity: 1; }
+  .star-btn.starred { opacity: 1; color: #FBBF24; }
+  .star-btn:hover { color: #FBBF24; }
+  body.editing .star-btn { display: none; }
+
+  /* Category grid */
+  .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .cat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; cursor: pointer;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+  }
+  .cat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 40px rgba(0,0,0,.35); border-color: rgba(255,255,255,.2); }
+  .cat-banner { height: 5px; }
+  .cat-body { padding: 20px 22px 22px; }
+  .cat-icon-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .cat-icon { width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .cat-title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+  .cat-desc { font-size: 13px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
+  .cat-count { font-size: 12px; color: var(--faint); display: flex; align-items: center; gap: 6px; }
+  .cat-arrow { margin-top: 14px; display: flex; justify-content: flex-end; color: var(--faint); }
+
+  /* ── RESOURCE VIEW ── */
+  #res-view { display: none; padding: 28px 32px; }
+  .res-header { margin-bottom: 22px; }
+  .res-kicker { font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 4px; }
+  .res-title { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+  .res-desc { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .res-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .res-empty { color: var(--faint); font-size: 14px; padding: 48px 0; text-align: center; }
+
+  /* Group heading */
+  .group-heading { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .group-heading-label { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+  .group-heading-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* Resource item */
+  .ritem {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+    display: flex; align-items: flex-start; gap: 13px;
+    cursor: pointer; text-decoration: none; color: inherit;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+    position: relative;
+  }
+  .ritem:not(.edit-mode-item):hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,.3); border-color: rgba(255,255,255,.18); }
+  .ritem-icon { flex-shrink: 0; width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .ritem-body { flex: 1; min-width: 0; padding-right: 20px; }
+  .ritem-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; margin-bottom: 4px; }
+  .ritem-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .ritem-url { font-size: 11px; color: var(--faint); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ritem-arrow { flex-shrink: 0; color: var(--faint); margin-top: 10px; transition: color .15s; }
+  .ritem:hover .ritem-arrow { color: var(--text); }
+
+  /* ── EDIT MODE ── */
+  .edit-actions { display: none; position: absolute; top: 10px; right: 10px; gap: 5px; }
+  body.editing .edit-actions { display: flex; }
+  body.editing .ritem { cursor: default; }
+  body.editing .ritem:hover { transform: none; box-shadow: none; }
+  .eact-btn {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s; color: var(--faint);
+  }
+  .eact-btn:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .eact-btn.del:hover { background: rgba(248,113,113,.15); border-color: #F87171; color: #F87171; }
+
+  /* Inline edit form */
+  .edit-form {
+    background: var(--surface2); border: 1px solid #FBBF24;
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 9px; grid-column: span 1;
+  }
+  .edit-form label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 3px; }
+  .edit-form input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 7px; padding: 7px 10px; font-size: 13px; outline: none; transition: border-color .15s;
+  }
+  .edit-form input:focus { border-color: #FBBF24; }
+  .edit-form-btns { display: flex; gap: 7px; margin-top: 2px; }
+  .ef-save { flex: 1; padding: 7px; border-radius: 7px; background: #FBBF24; border: none; color: #032D60; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .ef-cancel { padding: 7px 14px; border-radius: 7px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 13px; cursor: pointer; }
+
+  /* Add item */
+  .add-item-btn {
+    display: none; align-items: center; justify-content: center; gap: 8px;
+    background: var(--surface); border: 1px dashed var(--border);
+    border-radius: 12px; padding: 20px; cursor: pointer;
+    color: var(--faint); font-size: 13px; font-weight: 500; transition: all .15s;
+  }
+  body.editing .add-item-btn { display: flex; }
+  .add-item-btn:hover { border-color: #FBBF24; color: #FBBF24; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">FDE <span>Hub</span></div>
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="breadcrumb-home" onclick="goHome()">Home</span>
+    <span>›</span>
+    <span class="breadcrumb-current" id="bc-current"></span>
+  </div>
+  <div class="topbar-right">
+    <div class="search-box">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search…">
+    </div>
+    <button class="topbar-btn" id="edit-toggle" onclick="toggleEdit()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit
+    </button>
+    <button class="back-btn" id="back-btn" onclick="goHome()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </button>
+  </div>
+</div>
+
+<div id="home-view">
+  <div class="home-intro"><h2>FDE Hub</h2><p>Your central launchpad — quick access to everything you need.</p></div>
+  <div id="pinned-section" class="home-section" style="display:none">
+    <div class="home-section-title">Pinned</div>
+    <div class="quick-row" id="pinned-row"></div>
+  </div>
+  <div id="recent-section" class="home-section" style="display:none">
+    <div class="home-section-title" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px">Recently Opened <span style="flex:1;height:1px;background:var(--border);display:inline-block;width:60px"></span></span>
+      <button onclick="clearRecent()" style="background:none;border:none;color:var(--faint);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;padding:0;transition:color .15s" onmouseover="this.style.color='#F87171'" onmouseout="this.style.color='var(--faint)'">Clear</button>
+    </div>
+    <div class="quick-row" id="recent-row"></div>
+  </div>
+  <div class="home-section">
+    <div class="home-section-title">Categories</div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+</div>
+
+<div id="res-view">
+  <div class="res-header">
+    <div class="res-kicker" id="rv-kicker"></div>
+    <div class="res-title" id="rv-title"></div>
+    <div class="res-desc" id="rv-desc"></div>
+  </div>
+  <div class="res-grid" id="res-grid"></div>
+  <div class="res-empty" id="res-empty" style="display:none">Nothing here yet.</div>
+</div>
+
+<script>
+const categories = [
+  { id: "bootcamp",     title: "Bootcamp",                          desc: "Core Salesforce platform fundamentals covered during FDE onboarding.", color: "#60A5FA", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>` },
+  { id: "commercial",   title: "Commercial Team Enablement Videos", desc: "Sales and solutions content — value frameworks, demos and competitive positioning.", color: "#A78BFA", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>` },
+  { id: "architecture", title: "Architecture",                      desc: "Integration patterns, security model, routing and enterprise design principles.", color: "#F87171", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>` },
+  { id: "agentscript",  title: "Agent Script",                      desc: "Agentforce Agent Script DSL — topics, subagents, variables, actions and design patterns.", color: "#A78BFA", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1.5"/><circle cx="8.5" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r="1" fill="currentColor" stroke="none"/><path d="M8 19h8"/></svg>` },
+  { id: "datacloud",    title: "Data Cloud",                        desc: "Unified customer data platform — streams, identity resolution, segments and activation.", color: "#FB923C", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>` },
+  { id: "dashboards",   title: "Key Dashboards",                    desc: "Important dashboards and analytics views — click to open directly.", color: "#34D399", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>` },
+  { id: "customers",    title: "Customers",                         desc: "Customer accounts — resources, notes and links for active engagements.", color: "#F472B6", icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` }
+];
+
+const defaultResources = [
+  { id: "r1",  cat: "dashboards",   title: "AI Spend",                                             desc: "Track AI usage and spend across the team.", url: "https://team24-portal.forge-prod.sfdcbt.net/content-frame/ai-spend" },
+  { id: "r2",  cat: "commercial",   title: "ANZ Builder Onboarding — Dev Process: How We Work",    desc: "ANZ Builder Onboarding - In Person - Dev Process: How We Work - 2026/11/09 10:40 AEDT presented by Kane Lo", url: "https://drive.google.com/file/d/1f4kYzqao6gVxEjlF0G4ooggUBz5NrGsz/view?ts=6afd4ab5" },
+  { id: "r4a", cat: "customers",    title: "Discovery Notes",                                      desc: "", url: "https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0C3MS2SBA9", group: "University of Melbourne" },
+  { id: "r4b", cat: "customers",    title: "Response to Agent Best Practice Questions",            desc: "", url: "https://docs.google.com/document/d/1dbKsXKOwwdx-zZVVnRfwFfqR0kb1lkXA2E5m89-Exhg/edit?tab=t.0#heading=h.bi2cti9kuzn6", group: "University of Melbourne" },
+  { id: "r5",  cat: "customers",    title: "Christian Education Ministry",                         desc: "", url: "" },
+  { id: "r3",  cat: "architecture", title: "SOMA for customer with 65 subagents",                  desc: "SOMA for customer with 65 subagents", url: "https://salesforce-internal.slack.com/archives/C09JFJRKAT0/p1794371139853579", group: "Discussion Threads" }
+];
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────
+function loadResources() {
+  const saved = localStorage.getItem("fde_hub_v4");
+  if (saved) return JSON.parse(saved);
+  ["fde_hub_v1","fde_hub_v2","fde_hub_v3"].forEach(k => localStorage.removeItem(k));
+  return JSON.parse(JSON.stringify(defaultResources));
+}
+function saveResources() { localStorage.setItem("fde_hub_v4", JSON.stringify(resources)); }
+
+function loadPinned()  { return JSON.parse(localStorage.getItem("fde_pinned") || "[]"); }
+function savePinned()  { localStorage.setItem("fde_pinned", JSON.stringify(pinned)); }
+function loadRecent()  { return JSON.parse(localStorage.getItem("fde_recent") || "[]"); }
+function saveRecent()  { localStorage.setItem("fde_recent", JSON.stringify(recent)); }
+
+let resources = loadResources();
+let pinned    = loadPinned();
+let recent    = loadRecent();
+
+function nextId() { return "r" + Date.now(); }
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let currentCat = null;
+let searchQ    = "";
+let editMode   = false;
+let editingId  = null;
+
+// ── PIN & RECENT ──────────────────────────────────────────────────────────
+function togglePin(id, e) {
+  e.preventDefault(); e.stopPropagation();
+  if (pinned.includes(id)) pinned = pinned.filter(p => p !== id);
+  else pinned.unshift(id);
+  savePinned();
+  renderResources();
+  renderHome();
+}
+
+function trackOpen(id) {
+  recent = [id, ...recent.filter(r => r !== id)].slice(0, 8);
+  saveRecent();
+}
+
+
+function clearRecent() {
+  recent = [];
+  saveRecent();
+  renderHome();
+}
+
+function renderQuickRows() {
+  const ps = document.getElementById("pinned-section");
+  const rs = document.getElementById("recent-section");
+  const pr = document.getElementById("pinned-row");
+  const rr = document.getElementById("recent-row");
+
+  const pinnedItems = pinned.map(id => resources.find(r => r.id === id)).filter(Boolean);
+  ps.style.display = pinnedItems.length ? "block" : "none";
+  pr.innerHTML = "";
+  pinnedItems.forEach(r => {
+    const cat = categories.find(c => c.id === r.cat);
+    const a = document.createElement(r.url ? "a" : "div");
+    a.className = "pill-item pin-active";
+    if (r.url) { a.href = r.url; a.target = "_blank"; a.onclick = () => trackOpen(r.id); }
+    a.innerHTML = `<div class="pill-dot" style="background:#FBBF24"></div><div class="pill-title">${r.title}</div><div class="pill-cat">${cat ? cat.title : ""}</div>`;
+    pr.appendChild(a);
+  });
+
+  const recentItems = recent.map(id => resources.find(r => r.id === id)).filter(Boolean).slice(0, 6);
+  rs.style.display = recentItems.length ? "block" : "none";
+  rr.innerHTML = "";
+  recentItems.forEach(r => {
+    const cat = categories.find(c => c.id === r.cat);
+    const a = document.createElement(r.url ? "a" : "div");
+    a.className = "pill-item";
+    if (r.url) { a.href = r.url; a.target = "_blank"; a.onclick = () => trackOpen(r.id); }
+    a.innerHTML = `<div class="pill-dot" style="background:${cat ? cat.color : '#94A3B8'}"></div><div class="pill-title">${r.title}</div><div class="pill-cat">${cat ? cat.title : ""}</div>`;
+    rr.appendChild(a);
+  });
+}
+
+// ── EDIT TOGGLE ───────────────────────────────────────────────────────────
+function toggleEdit() {
+  editMode = !editMode;
+  document.body.classList.toggle("editing", editMode);
+  const btn = document.getElementById("edit-toggle");
+  btn.classList.toggle("edit-active", editMode);
+  btn.innerHTML = editMode
+    ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Done`
+    : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit`;
+  editingId = null;
+  if (currentCat) renderResources(); else renderHome();
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────
+function renderHome() {
+  renderQuickRows();
+  const grid = document.getElementById("cat-grid");
+  grid.innerHTML = "";
+
+  if (searchQ) {
+    const hits = resources.filter(r =>
+      r.title.toLowerCase().includes(searchQ) || (r.desc||"").toLowerCase().includes(searchQ) || (r.group||"").toLowerCase().includes(searchQ)
+    );
+    if (!hits.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;color:var(--faint);font-size:14px;padding:48px 0;text-align:center">No results for "${searchQ}"</div>`;
+      return;
+    }
+    hits.forEach(r => { const cat = categories.find(c => c.id === r.cat); grid.appendChild(makeRitem(r, cat)); });
+    return;
+  }
+
+  categories.forEach(cat => {
+    const count = resources.filter(r => r.cat === cat.id).length;
+    const card = document.createElement("div");
+    card.className = "cat-card";
+    card.onclick = () => openCat(cat.id);
+    card.innerHTML = `
+      <div class="cat-banner" style="background:${cat.color}"></div>
+      <div class="cat-body">
+        <div class="cat-icon-row">
+          <div class="cat-icon" style="background:${cat.color}20;color:${cat.color}">${cat.icon}</div>
+          <div class="cat-title">${cat.title}</div>
+        </div>
+        <div class="cat-desc">${cat.desc}</div>
+        <div class="cat-count">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          ${count === 0 ? "No items yet" : `${count} item${count === 1 ? "" : "s"}`}
+        </div>
+        <div class="cat-arrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ── OPEN CAT ──────────────────────────────────────────────────────────────
+function openCat(catId) {
+  currentCat = catId; searchQ = ""; editingId = null;
+  document.getElementById("searchInput").value = "";
+  const cat = categories.find(c => c.id === catId);
+  document.getElementById("rv-kicker").textContent = "Resources";
+  document.getElementById("rv-kicker").style.color = cat.color;
+  document.getElementById("rv-title").textContent = cat.title;
+  document.getElementById("rv-desc").textContent = cat.desc;
+  document.getElementById("home-view").style.display = "none";
+  document.getElementById("res-view").style.display = "block";
+  document.getElementById("breadcrumb").classList.add("show");
+  document.getElementById("bc-current").textContent = cat.title;
+  document.getElementById("back-btn").classList.add("show");
+  renderResources();
+}
+
+function goHome() {
+  currentCat = null; editingId = null;
+  document.getElementById("home-view").style.display = "block";
+  document.getElementById("res-view").style.display = "none";
+  document.getElementById("breadcrumb").classList.remove("show");
+  document.getElementById("back-btn").classList.remove("show");
+  renderHome();
+}
+
+// ── ICONS ─────────────────────────────────────────────────────────────────
+const ICON_SLACK = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"/><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"/><path d="M15.5 19H14v1.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5-.67-1.5-1.5-1.5z"/><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"/><path d="M8.5 5H10V3.5C10 2.67 9.33 2 8.5 2S7 2.67 7 3.5 7.67 5 8.5 5z"/></svg>`;
+const ICON_LINK = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+const ICON_DOC  = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+const ICON_STAR_OFF = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const ICON_STAR_ON  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="#FBBF24" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+function getIcon(url) {
+  if (!url) return ICON_DOC;
+  if (url.includes("slack.com")) return ICON_SLACK;
+  return ICON_LINK;
+}
+
+// ── MAKE ITEM ─────────────────────────────────────────────────────────────
+function makeRitem(r, cat) {
+  if (editingId === r.id) return makeEditForm(r, cat);
+  const isStarred = pinned.includes(r.id);
+
+  const a = document.createElement(editMode ? "div" : "a");
+  a.className = "ritem";
+  if (!editMode && r.url) {
+    a.href = r.url; a.target = "_blank";
+    a.addEventListener("click", () => trackOpen(r.id));
+  }
+  a.innerHTML = `
+    <div class="ritem-icon" style="background:${cat.color}20;color:${cat.color}">${getIcon(r.url)}</div>
+    <div class="ritem-body">
+      <div class="ritem-title">${r.title}</div>
+      ${r.desc ? `<div class="ritem-desc">${r.desc}</div>` : ""}
+      ${r.url ? `<div class="ritem-url">${r.url}</div>` : ""}
+    </div>
+    ${!editMode && r.url ? `<div class="ritem-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>` : ""}
+    <button class="star-btn ${isStarred ? 'starred' : ''}" title="${isStarred ? 'Unpin' : 'Pin to top'}" onclick="togglePin('${r.id}', event)">${isStarred ? ICON_STAR_ON : ICON_STAR_OFF}</button>
+    <div class="edit-actions">
+      <div class="eact-btn" title="Edit" onclick="startEdit('${r.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <div class="eact-btn del" title="Delete" onclick="deleteItem('${r.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></div>
+    </div>`;
+  return a;
+}
+
+// ── EDIT FORM ─────────────────────────────────────────────────────────────
+function makeEditForm(r, cat) {
+  const groups = [...new Set(resources.filter(x => x.cat === currentCat && x.group).map(x => x.group))];
+  const groupOptions = groups.map(g => `<option value="${g}" ${r.group===g?'selected':''}>${g}</option>`).join("");
+  const div = document.createElement("div");
+  div.className = "edit-form";
+  div.innerHTML = `
+    <div><label>Title</label><input id="ef-title" value="${(r.title||'').replace(/"/g,'&quot;')}" placeholder="Title"></div>
+    <div><label>Description</label><input id="ef-desc" value="${(r.desc||'').replace(/"/g,'&quot;')}" placeholder="Description (optional)"></div>
+    <div><label>URL</label><input id="ef-url" value="${(r.url||'').replace(/"/g,'&quot;')}" placeholder="https://…"></div>
+    <div><label>Group (optional)</label><input id="ef-group" value="${(r.group||'').replace(/"/g,'&quot;')}" list="ef-groups-list" placeholder="e.g. University of Melbourne">
+      <datalist id="ef-groups-list">${groupOptions}</datalist></div>
+    <div class="edit-form-btns">
+      <button class="ef-save" onclick="saveItem('${r.id}')">Save</button>
+      <button class="ef-cancel" onclick="cancelEdit()">Cancel</button>
+    </div>`;
+  return div;
+}
+
+function startEdit(id) { editingId = id; renderResources(); }
+function cancelEdit()  {
+  const r = resources.find(x => x.id === editingId);
+  if (r && !r.title) { resources = resources.filter(x => x.id !== editingId); saveResources(); }
+  editingId = null; renderResources();
+}
+
+function saveItem(id) {
+  const title = document.getElementById("ef-title").value.trim();
+  const desc  = document.getElementById("ef-desc").value.trim();
+  const url   = document.getElementById("ef-url").value.trim();
+  const group = document.getElementById("ef-group").value.trim();
+  if (!title) return;
+  const idx = resources.findIndex(r => r.id === id);
+  if (idx > -1) resources[idx] = { ...resources[idx], title, desc, url, group: group || undefined };
+  else resources.push({ id, cat: currentCat, title, desc, url, group: group || undefined });
+  saveResources(); editingId = null; renderResources(); renderHome();
+}
+
+function deleteItem(id) {
+  if (!confirm("Delete this item?")) return;
+  resources = resources.filter(r => r.id !== id);
+  pinned = pinned.filter(p => p !== id);
+  recent = recent.filter(r => r !== id);
+  saveResources(); savePinned(); saveRecent();
+  renderResources(); renderHome();
+}
+
+function addItem(group) {
+  const tempId = nextId();
+  resources.push({ id: tempId, cat: currentCat, title: "", desc: "", url: "", group: group || undefined });
+  editingId = tempId;
+  renderResources();
+}
+
+// ── RENDER RESOURCES ──────────────────────────────────────────────────────
+function renderResources() {
+  const grid = document.getElementById("res-grid");
+  const empty = document.getElementById("res-empty");
+  grid.innerHTML = "";
+  const cat = categories.find(c => c.id === currentCat);
+  const filtered = resources.filter(r =>
+    r.cat === currentCat &&
+    (!searchQ || r.title.toLowerCase().includes(searchQ) || (r.desc||"").toLowerCase().includes(searchQ) || (r.group||"").toLowerCase().includes(searchQ))
+  );
+  empty.style.display = (!editMode && filtered.length === 0) ? "block" : "none";
+
+  const ungrouped = filtered.filter(r => !r.group);
+  const groups = [...new Set(filtered.filter(r => r.group).map(r => r.group))];
+
+  ungrouped.forEach(r => grid.appendChild(makeRitem(r, cat)));
+  if (editMode && !searchQ) {
+    const btn = document.createElement("div");
+    btn.className = "add-item-btn";
+    btn.onclick = () => addItem(null);
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add item`;
+    grid.appendChild(btn);
+  }
+  groups.forEach(g => {
+    const h = document.createElement("div");
+    h.className = "group-heading";
+    h.innerHTML = `<div class="group-heading-label">${g}</div><div class="group-heading-line"></div>`;
+    grid.appendChild(h);
+    filtered.filter(r => r.group === g).forEach(r => grid.appendChild(makeRitem(r, cat)));
+    if (editMode && !searchQ) {
+      const btn = document.createElement("div");
+      btn.className = "add-item-btn";
+      btn.onclick = () => addItem(g);
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add to ${g}`;
+      grid.appendChild(btn);
+    }
+  });
+}
+
+document.getElementById("searchInput").oninput = e => {
+  searchQ = e.target.value.toLowerCase();
+  if (currentCat) renderResources(); else renderHome();
+};
+
+renderHome();
+</script>
+</body>
+</html>
