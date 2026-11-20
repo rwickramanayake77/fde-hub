@@ -145,6 +145,7 @@
   .ritem-body { flex: 1; min-width: 0; padding-right: 20px; }
   .ritem-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; margin-bottom: 4px; }
   .ritem-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .ritem-author { font-size: 12px; color: var(--faint); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
   .ritem-url { font-size: 11px; color: var(--faint); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ritem-hierarchy { font-size: 11px; color: var(--faint); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
   .ritem-arrow { flex-shrink: 0; color: var(--faint); margin-top: 10px; transition: color .15s; }
@@ -205,6 +206,16 @@
   .pop-desc { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
   .pop-url { font-size: 11px; color: var(--faint); word-break: break-all; line-height: 1.4; }
   .pop-open { margin-top: 12px; font-size: 12px; font-weight: 600; color: #60A5FA; display: flex; align-items: center; gap: 5px; }
+  .pop-list-item { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+  .pop-list-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .pop-group-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-top: 10px; margin-bottom: 2px; }
+  .pop-count { color: var(--faint); font-size: 11px; margin-top: 8px; }
+  .ritem-type {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    margin-top: 5px; width: fit-content;
+  }
 </style>
 </head>
 <body>
@@ -276,8 +287,8 @@ const categories = [
 
 const defaultResources = [
   { id: "r1",  cat: "dashboards",   title: "AI Spend",                                             desc: "Track AI usage and spend across the team.", url: "https://team24-portal.forge-prod.sfdcbt.net/content-frame/ai-spend" },
-  { id: "r2",  cat: "commercial",   title: "ANZ Builder Onboarding — Dev Process: How We Work",    desc: "ANZ Builder Onboarding - In Person - Dev Process: How We Work - 2026/11/09 10:40 AEDT presented by Kane Lo", url: "https://drive.google.com/file/d/1f4kYzqao6gVxEjlF0G4ooggUBz5NrGsz/view?ts=6afd4ab5" },
-  { id: "r8",  cat: "commercial",   title: "FDE Architecture Kit",                                 desc: "FDE architecture kit by Olivier Rachon", url: "https://drive.google.com/file/d/1H6LAiG5YaBI5v8a6uI6GIDxoHyuvyDps/view?ts=6afd4ab6" },
+  { id: "r2",  cat: "commercial",   title: "ANZ Builder Onboarding — Dev Process: How We Work",    desc: "", author: "Kane Lo",        url: "https://drive.google.com/file/d/1f4kYzqao6gVxEjlF0G4ooggUBz5NrGsz/view?ts=6afd4ab5", type: "Video" },
+  { id: "r8",  cat: "commercial",   title: "FDE Architecture Kit",                                 desc: "", author: "Olivier Rachon", url: "https://drive.google.com/file/d/1H6LAiG5YaBI5v8a6uI6GIDxoHyuvyDps/view?ts=6afd4ab6", type: "Video" },
   { id: "r4a", cat: "customers",    title: "Discovery Notes",                                      desc: "", url: "https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0C3MS2SBA9", group: "University of Melbourne" },
   { id: "r4b", cat: "customers",    title: "Response to Agent Best Practice Questions",            desc: "", url: "https://docs.google.com/document/d/1dbKsXKOwwdx-zZVVnRfwFfqR0kb1lkXA2E5m89-Exhg/edit?tab=t.0#heading=h.bi2cti9kuzn6", group: "University of Melbourne" },
 
@@ -293,7 +304,18 @@ function loadResources() {
   if (!saved) return JSON.parse(JSON.stringify(defaultResources));
   const merged = JSON.parse(saved);
   const savedIds = new Set(merged.map(r => r.id));
-  defaultResources.forEach(r => { if (!savedIds.has(r.id)) merged.push(r); });
+  defaultResources.forEach(r => {
+    if (!savedIds.has(r.id)) {
+      merged.push(r);
+    } else {
+      const existing = merged.find(x => x.id === r.id);
+      if (existing) {
+        if (r.type   && !existing.type)   existing.type   = r.type;
+        if (r.author && !existing.author) existing.author = r.author;
+        if (r.desc   === "" && existing.desc && existing.desc === existing.title) existing.desc = "";
+      }
+    }
+  });
   return merged;
 }
 function saveResources() { localStorage.setItem("fde_hub_v4", JSON.stringify(resources)); }
@@ -403,6 +425,7 @@ function renderHome() {
     const count = resources.filter(r => r.cat === cat.id).length;
     const card = document.createElement("div");
     card.className = "cat-card";
+    card.dataset.catId = cat.id;
     card.onclick = () => openCat(cat.id);
     card.innerHTML = `
       <div class="cat-banner" style="background:${cat.color}"></div>
@@ -461,6 +484,37 @@ function getIcon(url) {
   return ICON_LINK;
 }
 
+// ── TYPE CHIPS ────────────────────────────────────────────────────────────
+const TYPE_COLORS = {
+  Slack:     { bg: "rgba(167,139,250,.18)", color: "#A78BFA" },
+  Doc:       { bg: "rgba(96,165,250,.18)",  color: "#60A5FA" },
+  Slides:    { bg: "rgba(251,191,36,.18)",  color: "#FBBF24" },
+  Video:     { bg: "rgba(248,113,113,.18)", color: "#F87171" },
+  Dashboard: { bg: "rgba(52,211,153,.18)",  color: "#34D399" },
+  Drive:     { bg: "rgba(96,165,250,.18)",  color: "#60A5FA" },
+  PDF:       { bg: "rgba(251,146,60,.18)",  color: "#FB923C" },
+  Link:      { bg: "rgba(148,163,184,.12)", color: "#94A3B8" },
+};
+
+function getType(r) {
+  if (r.type) return r.type;
+  const url = r.url || "";
+  if (!url) return null;
+  if (url.includes("slack.com")) return "Slack";
+  if (url.includes("docs.google.com/presentation")) return "Slides";
+  if (url.includes("docs.google.com/document")) return "Doc";
+  if (url.includes("drive.google.com")) return "Drive";
+  if (url.includes("forge-prod") || url.includes("/dashboard") || url.includes("/analytics")) return "Dashboard";
+  return "Link";
+}
+
+function typeChipHtml(r) {
+  const type = getType(r);
+  if (!type) return "";
+  const c = TYPE_COLORS[type] || TYPE_COLORS.Link;
+  return `<div class="ritem-type" style="background:${c.bg};color:${c.color}">${type}</div>`;
+}
+
 // ── MAKE ITEM ─────────────────────────────────────────────────────────────
 function makeRitem(r, cat, showHierarchy) {
   if (editingId === r.id) return makeEditForm(r, cat);
@@ -480,6 +534,8 @@ function makeRitem(r, cat, showHierarchy) {
     <div class="ritem-body">
       ${hierarchyHtml}
       <div class="ritem-title">${r.title}</div>
+      ${typeChipHtml(r)}
+      ${r.author ? `<div class="ritem-author"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${r.author}</div>` : ""}
       ${r.desc ? `<div class="ritem-desc">${r.desc}</div>` : ""}
       ${r.url ? `<div class="ritem-url">${r.url}</div>` : ""}
     </div>
@@ -500,10 +556,15 @@ function makeEditForm(r, cat) {
   div.className = "edit-form";
   div.innerHTML = `
     <div><label>Title</label><input id="ef-title" value="${(r.title||'').replace(/"/g,'&quot;')}" placeholder="Title"></div>
+    <div><label>Author (optional)</label><input id="ef-author" value="${(r.author||'').replace(/"/g,'&quot;')}" placeholder="e.g. Kane Lo"></div>
     <div><label>Description</label><input id="ef-desc" value="${(r.desc||'').replace(/"/g,'&quot;')}" placeholder="Description (optional)"></div>
     <div><label>URL</label><input id="ef-url" value="${(r.url||'').replace(/"/g,'&quot;')}" placeholder="https://…"></div>
     <div><label>Group (optional)</label><input id="ef-group" value="${(r.group||'').replace(/"/g,'&quot;')}" list="ef-groups-list" placeholder="e.g. University of Melbourne">
       <datalist id="ef-groups-list">${groupOptions}</datalist></div>
+    <div><label>Type (optional — auto-detected if blank)</label>
+      <input id="ef-type" value="${(r.type||'').replace(/"/g,'&quot;')}" list="ef-types-list" placeholder="e.g. Video, Doc, Slack, Slides, Dashboard, PDF">
+      <datalist id="ef-types-list">${Object.keys(TYPE_COLORS).map(t=>`<option value="${t}">`).join("")}</datalist>
+    </div>
     <div class="edit-form-btns">
       <button class="ef-save" onclick="saveItem('${r.id}')">Save</button>
       <button class="ef-cancel" onclick="cancelEdit()">Cancel</button>
@@ -519,14 +580,16 @@ function cancelEdit()  {
 }
 
 function saveItem(id) {
-  const title = document.getElementById("ef-title").value.trim();
-  const desc  = document.getElementById("ef-desc").value.trim();
-  const url   = document.getElementById("ef-url").value.trim();
-  const group = document.getElementById("ef-group").value.trim();
+  const title  = document.getElementById("ef-title").value.trim();
+  const author = document.getElementById("ef-author").value.trim();
+  const desc   = document.getElementById("ef-desc").value.trim();
+  const url    = document.getElementById("ef-url").value.trim();
+  const group  = document.getElementById("ef-group").value.trim();
+  const type   = document.getElementById("ef-type").value.trim();
   if (!title) return;
   const idx = resources.findIndex(r => r.id === id);
-  if (idx > -1) resources[idx] = { ...resources[idx], title, desc, url, group: group || undefined };
-  else resources.push({ id, cat: currentCat, title, desc, url, group: group || undefined });
+  if (idx > -1) resources[idx] = { ...resources[idx], title, author: author || undefined, desc, url, group: group || undefined, type: type || undefined };
+  else resources.push({ id, cat: currentCat, title, author: author || undefined, desc, url, group: group || undefined, type: type || undefined });
   saveResources(); editingId = null; renderResources(); renderHome();
 }
 
@@ -595,8 +658,57 @@ const popover = document.getElementById("hoverPopover");
 let popTimer = null;
 
 document.addEventListener("mouseover", e => {
+  if (editMode) return;
+
+  const catCard = e.target.closest(".cat-card");
+  if (catCard) {
+    const catId = catCard.dataset.catId;
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    clearTimeout(popTimer);
+    popTimer = setTimeout(() => {
+      const catResources = resources.filter(r => r.cat === catId);
+      let listHtml = "";
+      if (catResources.length === 0) {
+        listHtml = `<div style="color:var(--faint);font-size:12px;">No items yet</div>`;
+      } else {
+        const MAX = 10;
+        let count = 0;
+        const ungrouped = catResources.filter(r => !r.group);
+        const groups = [...new Set(catResources.filter(r => r.group).map(r => r.group))];
+        ungrouped.forEach(r => {
+          if (count < MAX) { listHtml += `<div class="pop-list-item"><div class="pop-list-dot" style="background:${cat.color}"></div><span>${r.title}</span></div>`; count++; }
+        });
+        groups.forEach(g => {
+          if (count >= MAX) return;
+          listHtml += `<div class="pop-group-label">${g}</div>`;
+          catResources.filter(r => r.group === g).forEach(r => {
+            if (count < MAX) { listHtml += `<div class="pop-list-item"><div class="pop-list-dot" style="background:${cat.color}"></div><span>${r.title}</span></div>`; count++; }
+          });
+        });
+        const remaining = catResources.length - count;
+        if (remaining > 0) listHtml += `<div class="pop-count">+${remaining} more</div>`;
+      }
+      popover.innerHTML = `
+        <div class="pop-title" style="color:${cat.color};margin-bottom:10px">${cat.title}</div>
+        ${listHtml}
+      `;
+      const rect = catCard.getBoundingClientRect();
+      const pw = 260, ph = popover.offsetHeight || 120, gap = 10;
+      let left = rect.right + gap;
+      let top  = rect.top;
+      if (left + pw > window.innerWidth - 12) left = rect.left - pw - gap;
+      if (top + ph > window.innerHeight - 12) top = window.innerHeight - ph - 12;
+      if (top < 8) top = 8;
+      popover.style.left = left + "px";
+      popover.style.top  = top  + "px";
+      popover.classList.add("show");
+    }, 180);
+    return;
+  }
+
   const ritem = e.target.closest(".ritem");
-  if (!ritem || editMode) return;
+  if (!ritem) return;
   const id = ritem.querySelector(".star-btn")?.getAttribute("onclick")?.match(/'([^']+)'/)?.[1];
   if (!id) return;
   const r = resources.find(x => x.id === id);
@@ -615,7 +727,6 @@ document.addEventListener("mouseover", e => {
       ${r.url ? `<div class="pop-url">${r.url}</div>` : ""}
       ${r.url ? `<div class="pop-open"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Click to open</div>` : ""}
     `;
-
     const rect = ritem.getBoundingClientRect();
     const pw = 290, ph = popover.offsetHeight || 160, gap = 10;
     let left = rect.right + gap;
@@ -623,7 +734,6 @@ document.addEventListener("mouseover", e => {
     if (left + pw > window.innerWidth - 12) left = rect.left - pw - gap;
     if (top + ph > window.innerHeight - 12) top = window.innerHeight - ph - 12;
     if (top < 8) top = 8;
-
     popover.style.left = left + "px";
     popover.style.top  = top  + "px";
     popover.classList.add("show");
@@ -631,10 +741,10 @@ document.addEventListener("mouseover", e => {
 });
 
 document.addEventListener("mouseout", e => {
-  const ritem = e.target.closest(".ritem");
-  if (!ritem) return;
-  clearTimeout(popTimer);
-  popover.classList.remove("show");
+  if (e.target.closest(".cat-card") || e.target.closest(".ritem")) {
+    clearTimeout(popTimer);
+    popover.classList.remove("show");
+  }
 });
 
 renderHome();
