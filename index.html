@@ -6,9 +6,9 @@
 <title>GPS FDE Asset Repository</title>
 <style>
   :root {
-    --bg:      #032D60;
-    --surface: #0A3D73;
-    --surface2:#0D4A8A;
+    --bg:      #021A3D;
+    --surface: #032D60;
+    --surface2:#0A3D73;
     --border:  #1A5FA0;
     --text:    #FFFFFF;
     --muted:   #E2EEFF;
@@ -20,7 +20,7 @@
   /* ── TOP BAR ── */
   .topbar {
     position: sticky; top: 0; z-index: 10;
-    background: rgba(3,45,96,.92); backdrop-filter: blur(12px);
+    background: rgba(2,26,61,.92); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     padding: 14px 32px 20px;
     display: flex; align-items: center; gap: 12px;
@@ -28,7 +28,7 @@
   .topbar-title { display: flex; align-items: center; gap: 12px; position: absolute; left: 50%; transform: translateX(-50%); }
   .topbar-title-text { font-size: 39px; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
   .topbar-icon { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
-  .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); padding: 12px 32px; border-bottom: 1px solid var(--border); background: rgba(10,61,115,.5); }
+  .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); padding: 12px 32px; border-bottom: 1px solid var(--border); background: rgba(3,45,96,.5); }
   .breadcrumb.show { display: flex; }
   .breadcrumb-home { cursor: pointer; }
   .breadcrumb-home:hover { color: var(--text); }
@@ -225,7 +225,7 @@
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
     text-align: center; padding: 10px 32px;
     border-top: 1px solid var(--border);
-    background: rgba(3,45,96,.95); backdrop-filter: blur(12px);
+    background: rgba(2,26,61,.95); backdrop-filter: blur(12px);
     font-size: 11px; color: var(--faint);
     display: flex; align-items: center; justify-content: center; gap: 16px;
   }
