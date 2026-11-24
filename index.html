@@ -222,12 +222,15 @@
 
   /* ── FOOTER ── */
   .footer {
-    text-align: center; padding: 16px 32px;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
+    text-align: center; padding: 10px 32px;
     border-top: 1px solid var(--border);
+    background: rgba(3,45,96,.95); backdrop-filter: blur(12px);
     font-size: 11px; color: var(--faint);
     display: flex; align-items: center; justify-content: center; gap: 16px;
   }
   .footer-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+  .main-content { padding-bottom: 42px; }
 
   /* ── APP BODY SPLIT ── */
   .app-body { display: flex; align-items: flex-start; }
