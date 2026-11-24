@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FDE Hub</title>
+<title>GPS FDE Asset Repository</title>
 <style>
   :root {
     --bg:      #032D60;
@@ -25,6 +25,9 @@
     padding: 14px 32px;
     display: flex; align-items: center; gap: 12px;
   }
+  .topbar-title { display: flex; align-items: center; gap: 12px; position: absolute; left: 50%; transform: translateX(-50%); }
+  .topbar-title-text { font-size: 26px; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
+  .topbar-icon { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
   .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); }
   .breadcrumb.show { display: flex; }
   .breadcrumb-home { cursor: pointer; }
@@ -59,7 +62,9 @@
   /* ── HOME ── */
   #home-view { padding: 28px 32px 36px; }
   .home-intro { margin-bottom: 24px; text-align: center; }
-  .home-intro h2 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 4px; }
+  .home-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 4px; }
+  .home-title-row h2 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+  .home-icon { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
   .home-intro p { color: var(--faint); font-size: 14px; }
 
   /* Quick access + Recent rows */
@@ -214,6 +219,35 @@
     font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
     margin-top: 5px; width: fit-content;
   }
+
+  /* ── APP BODY SPLIT ── */
+  .app-body { display: flex; align-items: flex-start; }
+  .main-content { flex: 1; min-width: 0; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 196px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    padding: 16px 0 32px;
+    position: sticky; top: 55px;
+    height: calc(100vh - 55px);
+    overflow-y: auto;
+  }
+  .sb-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--faint); padding: 16px 16px 6px;
+  }
+  .sb-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 16px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  .sb-item:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .sb-item.active { color: var(--text); font-weight: 600; background: rgba(255,255,255,.06); border-left-color: #60A5FA; }
+  .sb-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 11px; color: var(--faint); font-weight: 400; }
 </style>
 </head>
 <body>
@@ -221,6 +255,11 @@
 <div class="hover-popover" id="hoverPopover"></div>
 
 <div class="topbar">
+  <div class="topbar-title" id="topbar-title">
+    <img class="topbar-icon" src="https://img.icons8.com/color/1200/salesforce.jpg" alt="Salesforce">
+    <span class="topbar-title-text">GPS FDE Asset Repository</span>
+    <img class="topbar-icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZPoL4y6Ifv5acolC0Hfzue96mJl48VWrWUmhK-x-5RQ&s=10" alt="">
+  </div>
   <div class="breadcrumb" id="breadcrumb">
     <span class="breadcrumb-home" onclick="goHome()">Home</span>
     <span>›</span>
@@ -242,8 +281,11 @@
   </div>
 </div>
 
+<div class="app-body">
+<nav class="sidebar" id="sidebar"></nav>
+<div class="main-content">
+
 <div id="home-view">
-  <div class="home-intro"><h2>FDE Hub</h2><p>Your central launchpad — quick access to everything you need.</p></div>
   <div id="pinned-section" class="home-section" style="display:none">
     <div class="home-section-title">Pinned</div>
     <div class="quick-row" id="pinned-row"></div>
@@ -270,6 +312,9 @@
   <div class="res-grid" id="res-grid"></div>
   <div class="res-empty" id="res-empty" style="display:none">Nothing here yet.</div>
 </div>
+
+</div><!-- /.main-content -->
+</div><!-- /.app-body -->
 
 <script>
 const categories = [
@@ -332,10 +377,11 @@ let recent    = loadRecent();
 function nextId() { return "r" + Date.now(); }
 
 // ── STATE ─────────────────────────────────────────────────────────────────
-let currentCat = null;
-let searchQ    = "";
-let editMode   = false;
-let editingId  = null;
+let currentCat    = null;
+let searchQ       = "";
+let editMode      = false;
+let editingId     = null;
+let sidebarFilter = null; // { kind: 'type'|'group', value: string }
 
 // ── PIN & RECENT ──────────────────────────────────────────────────────────
 function togglePin(id, e) {
@@ -403,6 +449,94 @@ function toggleEdit() {
   if (currentCat) renderResources(); else renderHome();
 }
 
+// ── SIDEBAR ───────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const sb = document.getElementById("sidebar");
+  sb.innerHTML = "";
+
+  const isAll = !sidebarFilter && !currentCat;
+
+  // All Resources
+  const allEl = document.createElement("div");
+  allEl.className = "sb-item" + (isAll ? " active" : "");
+  allEl.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>All Resources<span class="sb-count">${resources.length}</span>`;
+  allEl.onclick = () => { sidebarFilter = null; goHome(); };
+  sb.appendChild(allEl);
+
+  // By Type
+  const typeMap = {};
+  resources.forEach(r => { const t = getType(r); if (t) typeMap[t] = (typeMap[t] || 0) + 1; });
+  const types = Object.keys(typeMap).sort();
+  if (types.length) {
+    const lbl = document.createElement("div"); lbl.className = "sb-section-label"; lbl.textContent = "By Type"; sb.appendChild(lbl);
+    types.forEach(t => {
+      const c = TYPE_COLORS[t] || TYPE_COLORS.Link;
+      const el = document.createElement("div");
+      el.className = "sb-item" + (sidebarFilter?.kind === "type" && sidebarFilter?.value === t ? " active" : "");
+      el.innerHTML = `<div class="sb-dot" style="background:${c.color}"></div>${t}<span class="sb-count">${typeMap[t]}</span>`;
+      el.onclick = () => setSidebarFilter("type", t);
+      sb.appendChild(el);
+    });
+  }
+
+  // By Group
+  const groupMap = {};
+  resources.forEach(r => { if (r.group) groupMap[r.group] = (groupMap[r.group] || 0) + 1; });
+  const groups = Object.keys(groupMap).sort();
+  if (groups.length) {
+    const lbl = document.createElement("div"); lbl.className = "sb-section-label"; lbl.textContent = "By Group"; sb.appendChild(lbl);
+    groups.forEach(g => {
+      const el = document.createElement("div");
+      el.className = "sb-item" + (sidebarFilter?.kind === "group" && sidebarFilter?.value === g ? " active" : "");
+      el.innerHTML = `<div class="sb-dot" style="background:var(--faint)"></div>${g}<span class="sb-count">${groupMap[g]}</span>`;
+      el.onclick = () => setSidebarFilter("group", g);
+      sb.appendChild(el);
+    });
+  }
+}
+
+function setSidebarFilter(kind, value) {
+  sidebarFilter = { kind, value };
+  currentCat = null;
+  searchQ = "";
+  document.getElementById("searchInput").value = "";
+  document.getElementById("home-view").style.display = "none";
+  document.getElementById("res-view").style.display = "block";
+  document.getElementById("breadcrumb").classList.remove("show");
+  document.getElementById("back-btn").classList.add("show");
+  document.getElementById("topbar-title").style.display = "none";
+
+  const kicker = document.getElementById("rv-kicker");
+  if (kind === "type") {
+    const c = TYPE_COLORS[value] || TYPE_COLORS.Link;
+    kicker.textContent = "Type";
+    kicker.style.color = c.color;
+  } else {
+    kicker.textContent = "Group";
+    kicker.style.color = "var(--faint)";
+  }
+  document.getElementById("rv-title").textContent = value;
+  document.getElementById("rv-desc").textContent = "";
+
+  renderSidebarResults();
+  renderSidebar();
+}
+
+function renderSidebarResults() {
+  const grid = document.getElementById("res-grid");
+  const empty = document.getElementById("res-empty");
+  grid.innerHTML = "";
+  let filtered;
+  if (sidebarFilter.kind === "type") {
+    filtered = resources.filter(r => getType(r) === sidebarFilter.value);
+  } else {
+    filtered = resources.filter(r => r.group === sidebarFilter.value);
+  }
+  if (searchQ) filtered = filtered.filter(r => r.title.toLowerCase().includes(searchQ) || (r.desc||"").toLowerCase().includes(searchQ));
+  empty.style.display = filtered.length === 0 ? "block" : "none";
+  filtered.forEach(r => { const cat = categories.find(c => c.id === r.cat); grid.appendChild(makeRitem(r, cat, true)); });
+}
+
 // ── HOME ──────────────────────────────────────────────────────────────────
 function renderHome() {
   renderQuickRows();
@@ -447,7 +581,7 @@ function renderHome() {
 
 // ── OPEN CAT ──────────────────────────────────────────────────────────────
 function openCat(catId) {
-  currentCat = catId; searchQ = ""; editingId = null;
+  currentCat = catId; searchQ = ""; editingId = null; sidebarFilter = null;
   document.getElementById("searchInput").value = "";
   const cat = categories.find(c => c.id === catId);
   document.getElementById("rv-kicker").textContent = "Resources";
@@ -459,16 +593,20 @@ function openCat(catId) {
   document.getElementById("breadcrumb").classList.add("show");
   document.getElementById("bc-current").textContent = cat.title;
   document.getElementById("back-btn").classList.add("show");
+  document.getElementById("topbar-title").style.display = "none";
   renderResources();
+  renderSidebar();
 }
 
 function goHome() {
-  currentCat = null; editingId = null;
+  currentCat = null; editingId = null; sidebarFilter = null;
   document.getElementById("home-view").style.display = "block";
   document.getElementById("res-view").style.display = "none";
   document.getElementById("breadcrumb").classList.remove("show");
   document.getElementById("back-btn").classList.remove("show");
+  document.getElementById("topbar-title").style.display = "flex";
   renderHome();
+  renderSidebar();
 }
 
 // ── ICONS ─────────────────────────────────────────────────────────────────
@@ -651,7 +789,9 @@ function renderResources() {
 
 document.getElementById("searchInput").oninput = e => {
   searchQ = e.target.value.toLowerCase();
-  if (currentCat) renderResources(); else renderHome();
+  if (currentCat) renderResources();
+  else if (sidebarFilter) renderSidebarResults();
+  else renderHome();
 };
 
 // ── HOVER POPOVER ─────────────────────────────────────────────────────────
@@ -749,6 +889,7 @@ document.addEventListener("mouseout", e => {
 });
 
 renderHome();
+renderSidebar();
 </script>
 </body>
 </html>
