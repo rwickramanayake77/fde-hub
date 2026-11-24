@@ -28,7 +28,7 @@
   .topbar-title { display: flex; align-items: center; gap: 12px; position: absolute; left: 50%; transform: translateX(-50%); }
   .topbar-title-text { font-size: 26px; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
   .topbar-icon { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
-  .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); }
+  .breadcrumb { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); padding: 12px 32px; border-bottom: 1px solid var(--border); background: rgba(10,61,115,.5); }
   .breadcrumb.show { display: flex; }
   .breadcrumb-home { cursor: pointer; }
   .breadcrumb-home:hover { color: var(--text); }
@@ -260,11 +260,6 @@
     <span class="topbar-title-text">GPS FDE Asset Repository</span>
     <img class="topbar-icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZPoL4y6Ifv5acolC0Hfzue96mJl48VWrWUmhK-x-5RQ&s=10" alt="">
   </div>
-  <div class="breadcrumb" id="breadcrumb">
-    <span class="breadcrumb-home" onclick="goHome()">Home</span>
-    <span>›</span>
-    <span class="breadcrumb-current" id="bc-current"></span>
-  </div>
   <div class="topbar-right">
     <div class="search-box">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -284,6 +279,11 @@
 <div class="app-body">
 <nav class="sidebar" id="sidebar"></nav>
 <div class="main-content">
+<div class="breadcrumb" id="breadcrumb">
+  <span class="breadcrumb-home" onclick="goHome()">Home</span>
+  <span>›</span>
+  <span class="breadcrumb-current" id="bc-current"></span>
+</div>
 
 <div id="home-view">
   <div id="pinned-section" class="home-section" style="display:none">
@@ -298,7 +298,6 @@
     <div class="quick-row" id="recent-row"></div>
   </div>
   <div class="home-section">
-    <div class="home-section-title">Categories</div>
     <div class="cat-grid" id="cat-grid"></div>
   </div>
 </div>
